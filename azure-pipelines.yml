@@ -1,12 +1,12 @@
 trigger:
-  - 'main'
+- 'main'
 
 variables:
-    buildConfiguration: 'Release'
-    leaderboardRepository: 'leaderboard'
-    webRepository: 'web'
-    tag: '$(Build.BuildId)'
-    imagePullSecret: 'secret'
+  buildConfiguration: 'Release'
+  leaderboardRepository: 'leaderboard'
+  webRepository: 'web'
+  tag: '$(Build.BuildId)'
+  imagePullSecret: 'secret'
 
 stages:
   - stage: 'Build'
@@ -17,28 +17,30 @@ stages:
       pool:
         vmImage: 'ubuntu-20.04'
       steps:
-      - task: Docker@2
-        displayName: 'Build and push the image to container registry'
-        inputs:
-          command: buildAndPush
-          buildContext: $(Build.Repository.LocalPath)
-          repository: $(webRepository)
-          dockerfile: '$(Build.SourcesDirectory)/Tailspin.SpaceGame.Web/Dockerfile'
-          containerRegistry: 'Container Registry Connection'
-          tags: |
-            $(tag)
-      - task: Docker@2
-        displayName: 'Build and push the leaderboard image to container registry'
-        inputs:
-          command: buildAndPush
-          buildContext: $(Build.Repository.LocalPath)
-          repository: $(leaderboardRepository)
-          dockerfile: '$(Build.SourcesDirectory)/Tailspin.SpaceGame.LeaderboardContainer/Dockerfile'
-          containerRegistry: 'Container Registry Connection'
-          tags: |
-            $(tag)
-      - publish: '$(Build.SourcesDirectory)/manifests'
-        artifact: manifests
+        - task: Docker@2
+          displayName: 'Build and push the web image to container registry'
+          inputs:
+            command: buildAndPush
+            buildContext: $(Build.Repository.LocalPath)
+            repository: $(webRepository)
+            dockerfile: '$(Build.SourcesDirectory)/Tailspin.SpaceGame.Web/Dockerfile'
+            containerRegistry: 'Container Registry Connection'
+            tags: |
+              $(tag)
+        
+        - task: Docker@2
+          displayName: 'Build and push the leaderboard image to container registry'
+          inputs:
+            command: buildAndPush
+            buildContext: $(Build.Repository.LocalPath)
+            repository: $(leaderboardRepository)
+            dockerfile: '$(Build.SourcesDirectory)/Tailspin.SpaceGame.LeaderboardContainer/Dockerfile'
+            containerRegistry: 'Container Registry Connection'
+            tags: |
+              $(tag)
+        
+        - publish: '$(Build.SourcesDirectory)/manifests'
+          artifact: manifests
 
   - stage: 'Deploy'
     displayName: 'Deploy the containers'
@@ -48,22 +50,23 @@ stages:
       displayName: Deploy
       pool:
         vmImage: 'ubuntu-20.04'
-      environment: 'Dev'
+      environment: 'spike.default'
       variables:
       - group: Release
       strategy:
         runOnce:
           deploy:
             steps:
-             - download: current
-               artifact: manifests
-             - task: KubernetesManifest@1
-               displayName: Create imagePullSecret
-               inputs:
+            - download: current
+              artifact: manifests
+            - task: KubernetesManifest@1
+              displayName: Create imagePullSecret
+              inputs:
                 action: createSecret
                 connectionType: azureResourceManager
                 secretName: $(imagePullSecret)
                 dockerRegistryEndpoint: 'Container Registry Connection'
                 azureSubscriptionConnection: 'Kubernetes Cluster Connection'
                 azureResourceGroup: 'tailspin-space-game-rg'
-                kubernetesCluster: 'tailspinspacegame2151'
+                kubernetesCluster: 'tailspinspacegame-28739'
+                namespace: 'default'
